@@ -55,10 +55,11 @@ gpupdate /force
 
 #### Compliance Item Detect Script Office age > 30 days
 ##### Must Equal False
+###### I am detecting three flavors of office here, you probably don't need that.
 
 $FilePathx64 = "c:\Program Files\Microsoft Office\root\Office16\excel.exe"
 $FilePathx86CTR = "C:\Program Files (x86)\Microsoft Office\root\Office16\excel.exe"
-$FilePathx86GMM = "c:\Program Files (x86)\Microsoft Office\Office16\excel.exe"
+$FilePathx86OLD = "c:\Program Files (x86)\Microsoft Office\Office16\excel.exe"
 
 function FileExistsx64 {
     If (Test-Path $FilePathx64) {
@@ -72,13 +73,13 @@ function FileExistsx86CTR {
     If (Test-Path $FilePathx86CTR) {
       FileAgex86CTR }
     else {
-      FileExistsx86GMM }
+      FileExistsx86OLD }
     }
     
 
-function FileExistsx86GMM {
-    If (Test-Path $FilePathx86GMM) {
-      FileAgex86GMM }
+function FileExistsx86OLD {
+    If (Test-Path $FilePathx86OLD) {
+      FileAgex86OLD }
     else {
       Return $false }
     }
@@ -104,8 +105,8 @@ function FileAgex86CTR {
     }
     
 	
-function FileAgex86GMM{
-    If (Get-ChildItem $FilePathx86GMM -ErrorAction SilentlyContinue | ? {$_.LastWriteTime -lt (Get-Date).AddDays(-30)}) 
+function FileAgex86OLD{
+    If (Get-ChildItem $FilePathx86OLD -ErrorAction SilentlyContinue | ? {$_.LastWriteTime -lt (Get-Date).AddDays(-30)}) 
     {
      Return $true
         }
