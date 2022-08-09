@@ -1,0 +1,145 @@
+# I found pieces of many things things here and cobbled them together myself, others are original. Don't use code you don't understand, don't @ me when you break something.
+
+
+#### Office 365 Force Update All Versions
+& 'C:\Program Files\Common Files\microsoft shared\ClickToRun\OfficeC2RClient.exe' /update user displaylevel=false forceappsshutdown=false
+
+#### Office 365 Repair All Versions
+$x86 = "scenario=Repair platform=x86 culture=en-us RepairType=QuickRepair FORCEAPPSHUTDOWN=True DisplayLevel=False"
+$x64 = "scenario=Repair platform=x64 culture=en-us RepairType=QuickRepair FORCEAPPSHUTDOWN=True DisplayLevel=False"
+$Command = "C:\Program Files\Microsoft Office 15\ClientX64\OfficeClickToRun.exe"
+$Prmsx86 = $x86.Split(" ")
+$Prmsx64 = $x64.Split(" ")
+
+Function Bitness {
+$text = Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration" -Name 'Platform' | Out-String
+If($text -like '*x64*')       {
+    #Write-Host $text ' should say x64'
+   & "$Command" $Prmsx64
+                             }
+elseIf($text -like '*x86*')   {
+    #Write-Host $text ' should say x86'
+   & "$Command" $Prmsx86}
+                   
+ else {
+        Write-Host 'error:' $text 
+        }                   
+                 
+                  }
+Bitness
+
+#### Reset Windows Update
+net stop wuauserv
+net stop cryptSvc
+net stop bits
+net stop msiserver
+Rename-item -Path 'C:\Windows\SoftwareDistribution' -NewName 'SoftwareDistribution.old' -Force
+Rename-item -Path 'C:\Windows\System32\catroot2' -NewName 'Catroot2.old' -Force
+Rename-Item -Path 'C:\Windows\System32\GroupPolicy\Machine\Registry.pol' -NewName 'registry.pol.old' -Force
+net start wuauserv
+net start cryptSvc
+net start bits
+net start msiserver
+gpupdate /force
+
+
+#### Just Rename Registry.pol and GPUpdate
+Rename-Item C:\Windows\System32\GroupPolicy\Machine\Registry.pol -NewName registry.pol.old -Force
+gpupdate /force
+
+
+#### GPUpdate and KList Purge, will propagate some changes without domain-reauth/user sign-in
+klist -lh 0 -li 0x3e7 purge
+gpupdate /force
+
+
+#### Compliance Item Detect Script Office age > 30 days
+##### Must Equal False
+
+$FilePathx64 = "c:\Program Files\Microsoft Office\root\Office16\excel.exe"
+$FilePathx86CTR = "C:\Program Files (x86)\Microsoft Office\root\Office16\excel.exe"
+$FilePathx86GMM = "c:\Program Files (x86)\Microsoft Office\Office16\excel.exe"
+
+function FileExistsx64 {
+    If (Test-Path $FilePathx64) {
+      FileAgex64 }
+    else {
+      FileExistsx86CTR }
+    }
+    
+	
+function FileExistsx86CTR {
+    If (Test-Path $FilePathx86CTR) {
+      FileAgex86CTR }
+    else {
+      FileExistsx86GMM }
+    }
+    
+
+function FileExistsx86GMM {
+    If (Test-Path $FilePathx86GMM) {
+      FileAgex86GMM }
+    else {
+      Return $false }
+    }
+    
+	
+function FileAgex64 {
+    If (Get-ChildItem $FilePathx64 -ErrorAction SilentlyContinue | ? {$_.LastWriteTime -lt (Get-Date).AddDays(-30)}) 
+    {
+     Return $true
+        }
+     else {
+       Return $false}
+    }
+    
+	
+function FileAgex86CTR {
+    If (Get-ChildItem $FilePathx86CTR -ErrorAction SilentlyContinue | ? {$_.LastWriteTime -lt (Get-Date).AddDays(-30)}) 
+    {
+     Return $true
+        }
+     else {
+       Return $false}
+    }
+    
+	
+function FileAgex86GMM{
+    If (Get-ChildItem $FilePathx86GMM -ErrorAction SilentlyContinue | ? {$_.LastWriteTime -lt (Get-Date).AddDays(-30)}) 
+    {
+     Return $true
+        }
+     else {
+       Return $false}
+    }
+    
+FileExistsx64
+
+#### Compliance Item Remediate with force-update
+& 'C:\Program Files\Common Files\microsoft shared\ClickToRun\OfficeC2RClient.exe' /update user displaylevel=false forceappsshutdown=false
+
+
+#### Compliance Item find Potentiall Problematic Registry Setting
+
+function CheckValue {
+$valuecheck = Get-ItemPropertyValue -Path "Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Office\ClickToRun\Scenario\UPDATE" -Name "ScenarioSubType"
+If ($valuecheck -eq "Default"){
+    CheckValue2}
+else{
+    Return $false}
+    }
+
+function CheckValue2 {
+$valuecheck = Get-ItemPropertyValue -Path "Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Office\ClickToRun\Scenario\UPDATE" -Name "TriggerSource"
+If ($valuecheck -eq "ScheduledTask"){
+    Return $true}
+else{
+    Return $false}
+    }
+
+
+CheckValue
+
+#### Compliance Item Remediate
+Set-ItemProperty -Path "Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Office\ClickToRun\Scenario\UPDATE" -Name "ScenarioSubType" -Value "Default" -Force -ErrorAction SilentlyContinue
+Set-ItemProperty -Path "Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Office\ClickToRun\Scenario\UPDATE" -Name "TriggerSource" -Value "SCHEDULEDTASK" -Force -ErrorAction SilentlyContinue
