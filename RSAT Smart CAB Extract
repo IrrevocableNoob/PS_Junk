@@ -3,8 +3,8 @@ This script is provided without warranties, guarantees, referees, or Applebee's.
 #>
 
 # Step 1: Define your source and destination folders. I highly suggest doing this locally in testing and not to a network share.
-$sourceFolder = "C:\SCCMApps\RSAT Offline\mul_windows_11_languages_and_optional_features_x64_dvd_dbe9044b\LanguagesAndOptionalFeatures"  # Replace with actual path to your CAB files
-$destinationFolder = "C:\SCCMApps\smartcabtest"  # Destination for RSAT-related CAB files
+$sourceFolder = "C:\temp\source\mul_windows_11_languages_and_optional_features_x64_dvd_dbe9044b\LanguagesAndOptionalFeatures"  # Replace with actual path to your CAB files
+$destinationFolder = "C:\temp\source\extract"  # Destination for RSAT-related CAB files
 
 
 # Step 2: Get RSAT Capability names. Don't edit this, this is getting the current "master list" from Microsoft. If you can't reach out to the internet AT ALL, edit the variable to look like this: $rsatCapabilities = Get-WindowsCapability -Name RSAT* -Online -Source $SourceFolder | Select-Object -ExpandProperty Name
