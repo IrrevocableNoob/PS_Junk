@@ -1,0 +1,62 @@
+<# We use Dell Command Update in several ways which may or may not be compatible with your configuration.
+
+Please note these samples are provided with no warranties of any kind. Automatically updating drivers, especially BIOS, Display, and Network,
+can have dramatically unintended consequences.
+
+Please visit the DCU-CLI command reference page here for your own customizations:
+https://www.dell.com/support/manuals/en-us/command-update/dcu_rg/dell-command-update-cli-commands?guid=guid-92619086-5f7c-4a05-bce2-0d560c15e8ed&lang=en-us
+#>
+
+<# DCU All But Applications
+I deploy this via the SCCM Script Repository
+Update the -outputLog paramters to your log folder.
+You MUST write the scan log, you do not have to write the update log, but I recommend it. #>
+
+Remove-Item C:\whereyourlogsgo\dellupdate.log -Force -ErrorAction SilentlyContinue
+Remove-Item C:\whereyourlogsgo\dellupdatescan.log -Force -ErrorAction SilentlyContinue
+
+$app = "C:\Program Files\Dell\CommandUpdate\dcu-cli.exe"
+$config = '/configure -silent -scheduleManual -autoSuspendBitLocker=enable -userConsent=disable'
+$scan = '/scan -outputLog=C:\whereyourlogsgo\dellupdatescan.log'
+$args = '/ApplyUpdates -updateType=bios,firmware,driver,others -reboot=disable -autoSuspendBitLocker=enable -outputLog=C:\whereyourlogsgo\dellupdate.log'
+
+Start-Process $app $config -Wait
+Start-Process $app $scan -Wait
+Start-Process $app $args -Wait
+
+<# DCU Only BIOS
+I also deploy this from the SCCM Script Repo, again update your log location. You must write the scan log.#>
+
+Remove-Item C:\whereyourlogsgo\dellupdate.log -Force -ErrorAction SilentlyContinue
+Remove-Item C:\whereyourlogsgo\dellupdatescan.log -Force -ErrorAction SilentlyContinue
+
+
+$app = "C:\Program Files\Dell\CommandUpdate\dcu-cli.exe"
+$config = '/configure -silent -scheduleManual -autoSuspendBitLocker=enable -userConsent=disable'
+$scan = '/scan -outputLog=C:\whereyourlogsgo\dellupdatescan.log'
+$args = '/ApplyUpdates -updateType=bios -reboot=disable -autoSuspendBitLocker=enable -outputLog=C:\whereyourlogsgo\dellupdate.log'
+
+Start-Process $app $config -Wait -WindowStyle Hidden
+Start-Process $app $scan -wait -WindowStyle Hidden
+Start-Process $app $args -wait -WindowStyle Hidden
+
+<# Dell DCU Update as Application 
+I use the same code as above, and then tattoo the registry with a string value of the date.
+That string value acts as the compliance item, although you CAN get false-positives this way
+if the install fails but the reg key writes. #>
+
+<# Dell DCU Install Configuration
+These are the paramters I use in the application install to prevent users from doing things we don't want them to.
+
+I currently use this as a custom pre-script in PMPC #>
+
+$app64 = "C:\Program Files\Dell\CommandUpdate\dcu-cli.exe"
+$config = '/configure -silent -scheduleManual -autoSuspendBitLocker=enable -userConsent=disable'
+
+
+If (Test-Path $app64){
+    Start-Process $app64 $config -Wait -WindowStyle Hidden
+ }
+Else {
+ }
+
