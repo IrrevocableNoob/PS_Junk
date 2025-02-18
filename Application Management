@@ -1,0 +1,113 @@
+##Find Uninstall String for Machine-Wide Apps##
+#
+#
+####
+Function Get-InstSoftware {
+    param (
+        [string]$DisplayNameWildcard = '*'
+    )
+    
+    if ([IntPtr]::Size -eq 4) {
+        $regpath = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
+    } else {
+        $regpath = @(
+            'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
+            'HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+        )
+    }
+    
+    Get-ItemProperty $regpath | .{process {
+        if ($_.DisplayName -and $_.UninstallString) { 
+            $_ 
+        }
+    }} | Where-Object { $_.DisplayName -like $DisplayNameWildcard } |
+    Select-Object DisplayName, DisplayVersion, UninstallString, PSChildName, Publisher, InstallDate | 
+    Sort-Object DisplayName
+}
+
+# Example usage
+# Get-InstSoftware -DisplayNameWildcard "*Office*"
+# Get-InstSoftware -DisplayNameWildcard "*Adobe*"
+
+Get-InstSoftware -DisplayNameWildcard "*monitor*"
+
+
+
+
+
+
+##Uninstall String Finder alternative version for Machine-Wide Apps with Prompt##
+#
+#
+####
+$appname = Read-Host -Prompt 'What are we destroying today?'
+
+$uninstall32 = gci "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" | foreach { gp $_.PSPath } | ? { $_ -like "*$appname*"} | select UninstallString
+$uninstall64 = gci "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" | foreach { gp $_.PSPath } | ? { $_ -like "*$appname*"} | select UninstallString
+
+if ($uninstall64) {
+$uninstall64 = $uninstall64.UninstallString -Replace "msiexec.exe","" -Replace "/I","" -Replace "/X",""
+$uninstall64 = $uninstall64.Trim()
+Write "x64 Uninstall path $uninstall64"
+
+}
+if ($uninstall32) {
+$uninstall32 = $uninstall32.UninstallString -Replace "msiexec.exe","" -Replace "/I","" -Replace "/X",""
+$uninstall32 = $uninstall32.Trim()
+Write "x86 uninstall path $uninstall32"
+}
+
+
+
+
+
+
+
+##Universal Uninstaller with Prompt, same as above but completes the uninstall##
+#
+#
+####
+$appname = Read-Host -Prompt 'What are we destroying today?'
+
+$uninstall32 = gci "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall" | foreach { gp $_.PSPath } | ? { $_ -like "*$appname*"} | select UninstallString
+$uninstall64 = gci "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" | foreach { gp $_.PSPath } | ? { $_ -like "*$appname*"} | select UninstallString
+
+if ($uninstall64) {
+$uninstall64 = $uninstall64.UninstallString -Replace "msiexec.exe","" -Replace "/I","" -Replace "/X",""
+$uninstall64 = $uninstall64.Trim()
+Write "Uninstalling x64 $uninstall64"
+start-process "msiexec.exe" -arg "/X $uninstall64 /qn" -Wait}
+if ($uninstall32) {
+$uninstall32 = $uninstall32.UninstallString -Replace "msiexec.exe","" -Replace "/I","" -Replace "/X",""
+$uninstall32 = $uninstall32.Trim()
+Write "Uninstalling x86 $uninstall32"
+start-process "msiexec.exe" -arg "/X $uninstall32 /qn" -Wait}
+
+
+
+
+
+
+####Chrome Uninstall, targets User AND Machine Wide Installs
+#
+#
+####
+Get-Process "*Chrome*" | Stop-Process -Force
+Get-Process "*GoogleCrash*" | Stop-Process -Force
+
+$AppInfo = Get-WmiObject Win32_Product -Filter "Name Like 'Google Chrome'"
+If ($AppInfo) {& ${env:WINDIR}\System32\msiexec /x $AppInfo.IdentifyingNumber /Quiet /Passive /NoRestart}
+
+$HKCUKey = Get-ItemProperty -path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Google Chrome" -name "Version" -ErrorAction SilentlyContinue
+$HKCUPath = $HKCUKey.Version
+If ($HKCUPath) {& ${env:LOCALAPPDATA}\Google\Chrome\Application\$HKCUPath\Installer\setup.exe --uninstall --multi-install --chrome --system-level --force-uninstall}
+
+
+$Reg32Key = Get-ItemProperty -path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Google Chrome" -name "Version" -ErrorAction SilentlyContinue
+$Ver32Path = $Reg32Key.Version
+If ($Ver32Path) {& ${env:ProgramFiles}\Google\Chrome\Application\$Ver32Path\Installer\setup.exe --uninstall --multi-install --chrome --system-level --force-uninstall}
+
+
+$Reg64Key = Get-ItemProperty -path 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Google Chrome' -name "Version" -ErrorAction SilentlyContinue
+$Ver64Path = $Reg64Key.Version
+If ($Ver64Path) {& ${env:ProgramFiles(x86)}\Google\Chrome\Application\$Ver64Path\Installer\setup.exe --uninstall --multi-install --chrome --system-level --force-uninstall}
